@@ -58,3 +58,23 @@ class Module(Node):
 
 class Circuit(Node):
 	modules = List[Module]
+
+
+## To String ##
+class ToString:
+
+	def visit(self, node: Node) -> str:
+		"""Visit a node."""
+		method = 'visit_' + node.__class__.__name__
+		visitor = getattr(self, method, self.generic_visit)
+		return visitor(node)
+
+	def generic_visit(self, node: Node):
+		raise NotImplementedError(f"TODO: visit({node.__class__.__name__}")
+
+	def visit_Circuit(self, node: Circuit) -> str:
+		return f"circuit {node.name} :" + "\n".join(self.visit(mod) for mod in node.modules)
+
+	def visit_Module(self, node: Module) -> str:
+		# TODO
+		return f"  module {node.name} :" + "\n".join(self.visit(stmt) for stmt in node.statements)

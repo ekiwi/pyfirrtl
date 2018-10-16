@@ -29,7 +29,7 @@ def _typing_aware_isinstance(obj, tt):
 	try:
 		return isinstance(obj, tt)
 	except TypeError as err:
-		assert str(err) == "Parameterized generics cannot be used with class or instance checks"
+		assert str(err) == "Parameterized generics cannot be used with class or instance checks", str(err)
 		# handle type checking for typing.List[type]
 		# this is very hacky and I would love for someone to show me how
 		# to correctly use the typing library
