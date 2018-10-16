@@ -39,6 +39,20 @@ class Statement(Node):
 class Connect(Statement):
 	pass
 
+## Expressions ##
+class Expression(Node):
+	pass
+	#ty = Type
+
+class Ref(Expression):
+	name = str
+
+class Mux(Expression):
+	sel = Expression
+	a = Expression
+	b = Expression
+
+
 
 ## Modules ##
 
