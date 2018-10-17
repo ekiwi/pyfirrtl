@@ -69,7 +69,7 @@ class Node(ast.AST):
 		aa = parse_args(field_names, args, kwargs)
 		# check completeness
 		for name, value in fields:
-			if not name in aa and not isinstance(value, Optional):
+			if not name in aa and not str(value).startswith('typing.Optional'):
 				raise TypeError("Missing value for field `{}`".format(name))
 		# check types
 		types = {ff[0]: ff[1] for ff in fields}

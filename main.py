@@ -1,17 +1,19 @@
 from firrtl import *
 from typing import Tuple
 
-def out(name: str, ty: Type) -> Port:
-	return Port(name=name, ty=ty, dir=PortDir.Output)
+def out(name: str, ty: Type) -> Tuple[str, Field]:
+	return 'out', Field(name=name, typ=ty)
 
-def inp(name: str, ty: Type) -> Port:
-	return Port(name=name, ty=ty, dir=PortDir.Input)
+def inp(name: str, ty: Type) -> Tuple[str, Field]:
+	return 'inp', Field(name=name, typ=ty)
 
-def ports(*args: Port) -> List[Port]:
+def ports(*args: Tuple[str, Field]) -> List[Tuple[str, Field]]:
 	return list(args)
 
-def module(name: str, ports: List[Port], statements: List[Statement]):
-	return Module(name=name, ports=ports, statements=statements)
+def module(name: str, pps: List[Tuple[str, Field]], statements: List[Statement]):
+	inputs  = [p for di, p in pps if di == 'inp']
+	outputs = [p for di, p in pps if di == 'out']
+	return Module(name=name, inputs=inputs, outputs=outputs, statements=statements)
 
 def assign(lhs: Ref, rhs: Expression) -> Connect:
 	return Connect(lhs=lhs, rhs=rhs)
