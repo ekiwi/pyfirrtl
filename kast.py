@@ -10,43 +10,21 @@
 
 import ast
 
-class Optional:
-	def __init__(self, field_type):
-		self.field_type = field_type
-
-def _is_list_type(tt):
-	return str(tt).startswith('typing.List[')
-def _is_set_type(tt):
-	return str(tt).startswith('typing.Set[')
-def _get_list_element_type(tt):
-	assert _is_list_type(tt) or _is_set_type(tt)
-	assert len(tt.__args__) == 1
-	return tt.__args__[0]
-
-def _typing_aware_isinstance(obj, tt):
-	""" this tries to work around some issues with using typing types """
-	# https://github.com/python/mypy/issues/3060
-	try:
-		return isinstance(obj, tt)
-	except TypeError as err:
-		assert str(err) == "Parameterized generics cannot be used with class or instance checks", str(err)
-		# handle type checking for typing.List[type]
-		# this is very hacky and I would love for someone to show me how
-		# to correctly use the typing library
-		if _is_list_type(tt):
-			if not isinstance(obj, list): return False
-		elif _is_set_type(tt):
-			if not isinstance(obj, set): return False
-		else:
-			raise TypeError("unknown type {}".format(tt))
-		inner_type = _get_list_element_type(tt)
-		return all(isinstance(el, inner_type) for el in obj)
-
-def _local_isinstance(obj, tt):
-	if isinstance(tt, Optional):
-		if obj == None: return True
-		tt = tt.field_type
-	return _typing_aware_isinstance(obj, tt)
+def _isinstance(obj, typ) -> bool:
+	typ_name = str(typ)
+	is_typing = typ_name.startswith('typing.')
+	if not is_typing:
+		return isinstance(obj, typ)
+	name = typ_name.split('.')[1].split('[')[0]
+	if name == 'Union':
+		return any(_isinstance(obj, aa) for aa in typ.__args__)
+	elif name == 'List':
+		(et,) = typ.__args__
+		return isinstance(obj, list) and all(_isinstance(ii, et) for ii in obj)
+	elif name == 'Tuple':
+		return isinstance(obj, tuple) and all(_isinstance(ii, aa) for ii,aa in zip(obj, typ.__args__))
+	else:
+		raise NotImplementedError(f"_isinstance({obj}, {typ})")
 
 def get_fields_of_class(cls):
 	""" returns the fields of a single class """
@@ -96,7 +74,7 @@ class Node(ast.AST):
 		# check types
 		types = {ff[0]: ff[1] for ff in fields}
 		for name, value in aa.items():
-			if not _local_isinstance(value, types[name]):
+			if not _isinstance(value, types[name]):
 				raise TypeError("Field `{}` requires values of type `{}` not `{}`".format(
 					name, types[name], type(value)))
 		# accept field values
