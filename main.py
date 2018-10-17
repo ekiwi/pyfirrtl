@@ -15,19 +15,30 @@ def module(name: str, pps: List[Tuple[str, Field]], statements: List[Statement])
 	outputs = [p for di, p in pps if di == 'out']
 	return Module(name=name, inputs=inputs, outputs=outputs, statements=statements)
 
-def assign(lhs: Ref, rhs: Expression) -> Connect:
+def assign(lhs: Ref, rhs: Expr) -> Connect:
 	return Connect(lhs=lhs, rhs=rhs)
+
+def _not(e: Expr) -> Expr:
+	return UnOp(op=Uop.Not, e=e)
 
 def make_circuit():
 	return Circuit(name="Inv", modules=[
 		module("Inv",
 			ports(inp('clk', Clock()), inp('reset', UInt(1)), inp('in', UInt(1)), out('out', UInt(1))),
-			   [assign(Ref('out'), Ref('in'))]
+			   [assign(Ref('out'), _not(Ref('in')))]
 			   )
 	])
 
 
 
 if __name__ == "__main__":
-	ir = ToString().visit(make_circuit())
+	circuit = make_circuit()
+
+	import os
+	out_dir = os.path.join('/home', 'kevin', 'd', 'treadle')
+	filename = os.path.join(out_dir, f'{circuit.name.lower()}.fir')
+	ir = ToString().visit(circuit)
+
+	with open(filename, 'w') as ff:
+		ff.write(ir + '\n')
 	print(ir)
