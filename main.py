@@ -13,12 +13,14 @@ def ports(*args: Port) -> List[Port]:
 def module(name: str, ports: List[Port], statements: List[Statement]):
 	return Module(name=name, ports=ports, statements=statements)
 
+def assign(lhs: Ref, rhs: Expression) -> Connect:
+	return Connect(lhs=lhs, rhs=rhs)
 
 def make_circuit():
 	return Circuit(name="Inv", modules=[
 		module("Inv",
 			ports(inp('clk', Clock()), inp('reset', UInt(1)), inp('in', UInt(1)), out('out', UInt(1))),
-			   []
+			   [assign(Ref('out'), Ref('in'))]
 			   )
 	])
 

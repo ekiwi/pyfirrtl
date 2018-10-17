@@ -31,14 +31,6 @@ class Field(Node):
 class Bundle(Type):
 	fields = List[Field]
 
-## Statement ##
-
-class Statement(Node):
-	pass
-
-class Connect(Statement):
-	pass
-
 ## Expressions ##
 class Expression(Node):
 	pass
@@ -52,7 +44,20 @@ class Mux(Expression):
 	a = Expression
 	b = Expression
 
+class ValidIf(Expression):
+	valid = Expression
+	a = Expression
 
+
+## Statement ##
+
+class Statement(Node):
+	pass
+
+
+class Connect(Statement):
+	lhs = Ref
+	rhs = Expression
 
 ## Modules ##
 
