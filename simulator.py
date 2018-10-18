@@ -24,21 +24,18 @@ class Simulator:
 		with tempfile.NamedTemporaryFile(suffix='.fir',delete=False) as ff:
 			ff.write(ir.encode('UTF-8'))
 			fir_file = ff.name
-		self.treadle.send_cmd(f"load {fir_file}")
-		compile, load = self.treadle.read_blocking(count=2)
+		_compile, _load = self.treadle.execute(f"load {fir_file}", 2)
 		os.unlink(fir_file)
 
 	def peek(self, signal: str) -> int:
-		self.treadle.send_cmd(f"peek {signal}")
-		res = self.treadle.read_blocking(count=1)[0]
+		res = self.treadle.execute(f"peek {signal}", 1)
 		return int(res.split(' ')[-1])
 
 	def poke(self, signal: str, value: int):
-		self.treadle.send_cmd(f"poke {signal} {value}")
+		self.treadle.execute(f"poke {signal} {value}")
 
 	def step(self, count=1):
-		self.treadle.send_cmd(f"step {count}")
-		res = self.treadle.read_blocking(count=1)[0]
+		_ = self.treadle.execute(f"step {count}", 1)
 
 	def stop(self):
 		self.treadle.stop()
@@ -87,6 +84,13 @@ class TreadleWrapper:
 		self.is_running = False
 		self._proc = None
 		self._output = None
+
+	def execute(self, cmd: str, count=0):
+		self.send_cmd(cmd=cmd)
+		if count == 1:
+			return self.read_blocking(count=1)[0]
+		elif count > 1:
+			return self.read_blocking(count=count)
 
 	def send_cmd(self, cmd: str):
 		assert self.is_running
