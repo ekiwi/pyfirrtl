@@ -24,10 +24,15 @@ def mkGcd(typ):
 
 
 """
+interface I_GCD;
+	method Action start (int a, int b);
+	method int result();
+endinterface
+
 module mkGCD(I_GCD);
 	Reg  # (int) x <- mkRegU;
 	Reg  # (int) y <- mkReg(0);
-	
+
 	rule swap((x > y) & & (y != 0));
 		x <= y;	y <= x;
 	endrule
