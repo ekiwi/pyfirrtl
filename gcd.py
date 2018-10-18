@@ -8,8 +8,8 @@ from aga import *
 
 
 def mkGcd(typ):
-	x = mkRegU(typ)
-	y = mkReg(typ, 0)
+	x = mkRegU('x', typ)
+	y = mkReg('y', typ, 0)
 
 	rule('swap', (x > y) and (y != 0),
 		x=y, y=x
@@ -17,9 +17,17 @@ def mkGcd(typ):
 	rule('subtract', (x <= y) and (y != 0),
 		y=y-x,
 	)
+	method(Action, 'start'
+
+	)
 
 
+def main():
+	print("Hello World")
 
+	# elaborate
+
+	# simulate for N cycles
 
 
 
@@ -47,3 +55,6 @@ module mkGCD(I_GCD);
 	endmethod
 endmodule
 """
+
+if __name__ == '__main__':
+	main()
