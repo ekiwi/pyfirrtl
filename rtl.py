@@ -50,11 +50,38 @@ def make_circuit():
 if __name__ == "__main__":
 	circuit = make_circuit()
 
+	ir = ToString().visit(circuit)
+	print(ir)
+
+	from simulator import Simulator
+	sim = Simulator.start()
+
+	def step():
+		sim.step(1)
+		print("--")
+		print(f"in: {sim.peek('in')}")
+		print(f"out: {sim.peek('out')}")
+
+
+	sim.load(ir)
+	sim.poke("reset", 1)
+	sim.poke("in", 0)
+	step()
+	sim.poke("reset", 0)
+	sim.poke("in", 1)
+	step()
+	sim.poke("in", 0)
+	step()
+	sim.poke("in", 1)
+	step()
+	sim.stop()
+
+
+
+	"""
 	import os
 	out_dir = os.path.join('/home', 'kevin', 'd', 'treadle')
 	filename = os.path.join(out_dir, f'{circuit.name.lower()}.fir')
-	ir = ToString().visit(circuit)
-
 	with open(filename, 'w') as ff:
 		ff.write(ir + '\n')
-	print(ir)
+	"""
