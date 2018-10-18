@@ -1,19 +1,18 @@
 from firrtl import *
-from typing import Tuple
+from typing import Tuple, Optional
 
-def out(name: str, ty: Type) -> Tuple[str, Field]:
-	return 'out', Field(name=name, typ=ty)
+def out(name: str, ty: Type) -> Port:
+	return Port(name=name, typ=ty, dir=PortDir.Output)
 
-def inp(name: str, ty: Type) -> Tuple[str, Field]:
-	return 'inp', Field(name=name, typ=ty)
+def inp(name: str, ty: Type) -> Port:
+	return Port(name=name, typ=ty, dir=PortDir.Input)
 
-def ports(*args: Tuple[str, Field]) -> List[Tuple[str, Field]]:
+def ports(*args: Port) -> List[Port]:
 	return list(args)
 
-def module(name: str, pps: List[Tuple[str, Field]], statements: List[Statement]):
-	inputs  = [p for di, p in pps if di == 'inp']
-	outputs = [p for di, p in pps if di == 'out']
-	return Module(name=name, inputs=inputs, outputs=outputs, statements=statements)
+def module(name: str, pps: List[Port], statements: List[Statement]):
+	default = [inp('clk', Clock()), inp('reset', UInt(1))]
+	return Module(name=name, ports=default+pps, statements=statements)
 
 def assign(lhs: Ref, rhs: Expr) -> Connect:
 	return Connect(lhs=lhs, rhs=rhs)
@@ -21,11 +20,21 @@ def assign(lhs: Ref, rhs: Expr) -> Connect:
 def _not(e: Expr) -> Expr:
 	return UnOp(op=Uop.Not, e=e)
 
+def reg(name: str, typ: Type, reset=None):
+	if reset is None:
+		return Register(name=name, typ=typ, clock=Ref("clk"))
+	else:
+		return Register(name=name, typ=typ, clock=Ref("clk"), reset=Reset(Ref("reset"), reset))
+
 def make_circuit():
 	return Circuit(name="Inv", modules=[
 		module("Inv",
-			ports(inp('clk', Clock()), inp('reset', UInt(1)), inp('in', UInt(1)), out('out', UInt(1))),
-			   [assign(Ref('out'), _not(Ref('in')))]
+			ports(inp('in', UInt(1)), out('out', UInt(1))),
+			   [
+					reg("delay", UInt(1), Ref('in')),
+					assign(Ref('delay'), _not(Ref('in'))),
+					assign(Ref('out'), Ref('delay'))
+			   ]
 			   )
 	])
 

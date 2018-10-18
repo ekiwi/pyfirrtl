@@ -126,6 +126,17 @@ class Connect(Statement):
 	lhs = Ref
 	rhs = Expr
 
+class Reset(Node):
+	enable = Expr
+	value = Expr
+
+class Register(Statement):
+	name = str
+	typ = Type
+	clock = Expr
+	reset = Optional[Reset]
+
+
 ## Modules ##
 
 class PortDir(Enum):
@@ -134,13 +145,12 @@ class PortDir(Enum):
 
 class Port(Node):
 	name = str
-	ty = Type
+	typ = Type
 	dir = PortDir
 
 class Module(Node):
 	name = str
-	inputs = List[Field]
-	outputs = List[Field]
+	ports = List[Port]
 	statements = List[Statement]
 
 class Circuit(Node):
@@ -163,6 +173,9 @@ class ToString:
 	def generic_visit(self, node):
 		raise NotImplementedError(f"TODO: visit({node.__class__.__name__})")
 
+	def visit_NoneType(self, none):
+		return ""
+
 	# Types
 	def visit_Field(self, node):
 		return f"{node.name}: {self.visit(node.typ)}"
@@ -178,15 +191,24 @@ class ToString:
 	def visit_Circuit(self, node):
 		return f"circuit {node.name} :\n" + "\n".join(self.visit(mod) for mod in node.modules)
 
+	def visit_Port(self, node):
+		return f"{node.dir.name.lower()} {node.name} : {self.visit(node.typ)}"
 	def visit_Module(self, node):
 		ir  = [f"  module {node.name} :"]
-		ir += [f"    input {self.visit(ii)}" for ii in node.inputs]
-		ir += [f"    output {self.visit(ii)}" for ii in node.outputs]
+		ir += [f"    {self.visit(ii)}" for ii in node.ports]
 		ir += [f"    {self.visit(stmt)}" for stmt in node.statements]
 		return "\n".join(ir)
 
 	def visit_Connect(self, node):
 		return f"{self.visit(node.lhs)} <= {self.visit(node.rhs)}"
+
+	def visit_Reset(self, node):
+		enable, value = self.visit(node.enable), self.visit(node.value)
+		return f" with: (reset => ({enable}, {value}))"
+	def visit_Register(self, node):
+		typ, clock, reset = self.visit(node.typ), self.visit(node.clock), self.visit(node.reset)
+		return f"reg {node.name} : {typ}, {clock}{reset}"
+
 
 	# Expressions
 	def visit_Ref(self, node):
