@@ -61,6 +61,11 @@ class TreadleClient:
 	def execute(self, cmd: str, count=0):
 		msg = f"{cmd}|{count}\n".encode("UTF-8")
 		self.sock.sendall(msg)
+		resp = self.sock.recv(1024 * 64).decode("UTF-8").split('\n')[:-1]
+		if len(resp) == 1 and len(resp[0]) == 0:
+			resp = []
+		assert len(resp) == count, f"{resp}, {count}"
+		return resp
 
 	def stop(self):
 		self.sock.close()

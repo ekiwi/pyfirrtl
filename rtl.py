@@ -54,7 +54,12 @@ if __name__ == "__main__":
 	print(ir)
 
 	from simulator import Simulator
-	sim = Simulator.start()
+	use_server = True
+	if use_server:
+		sim = Simulator.start_remote()
+		print("using treadle server...")
+	else:
+		sim = Simulator.start_local()
 
 	def step():
 		sim.step(1)
