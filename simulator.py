@@ -13,8 +13,13 @@ class Simulator:
 	""" Interface to the Treadle Circuit Simulator """
 
 	@staticmethod
-	def start():
+	def start_local():
 		treadle = TreadleWrapper(debug=False).start()
+		return Simulator(treadle)
+
+	@staticmethod
+	def start_remote():
+		treadle = TreadleClient.start()
 		return Simulator(treadle)
 
 	def __init__(self, treadle):
@@ -28,17 +33,65 @@ class Simulator:
 		os.unlink(fir_file)
 
 	def peek(self, signal: str) -> int:
-		res = self.treadle.execute(f"peek {signal}", 1)
+		res = self.treadle.execute(f"peek {signal}", 1)[0]
 		return int(res.split(' ')[-1])
 
 	def poke(self, signal: str, value: int):
 		self.treadle.execute(f"poke {signal} {value}")
 
 	def step(self, count=1):
-		_ = self.treadle.execute(f"step {count}", 1)
+		_ = self.treadle.execute(f"step {count}", 1)[0]
 
 	def stop(self):
 		self.treadle.stop()
+
+# server/client infrastructure to help with treadle's long startup times
+import socketserver, socket
+
+class TreadleClient:
+	@staticmethod
+	def start(host='127.0.0.1', port=4321):
+		sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		sock.connect((host, port))
+		return TreadleClient(sock)
+
+	def __init__(self, sock):
+		self.sock = sock
+
+	def execute(self, cmd: str, count=0):
+		msg = f"{cmd}|{count}\n".encode("UTF-8")
+		self.sock.sendall(msg)
+
+	def stop(self):
+		self.sock.close()
+
+
+class TreadleServer(socketserver.TCPServer):
+	@staticmethod
+	def run(host='127.0.0.1', port=4321):
+		print("Starting treadle...")
+		treadle = TreadleWrapper(debug=True).start()
+		print("Started treadle...")
+		with TreadleServer(host=host, port=port, treadle=treadle) as server:
+			server.serve_forever()
+	def __init__(self, host, port, treadle):
+		self.treadle = treadle
+		super().__init__((host, port), TreadleHandler)
+
+
+class TreadleHandler(socketserver.StreamRequestHandler):
+	def handle(self):
+		addr = self.client_address[0]
+		print(f"Connected to: {addr}")
+		try:
+			for line in self.rfile:
+				cmd, count = line.decode('UTF-8').split('|')
+				ret = self.server.treadle.execute(cmd, count=int(count))
+				resp = '\n'.join(ret) + '\n'
+				self.wfile.write(resp.encode('UTF-8'))
+		except ConnectionResetError:
+			print(f"Disconnected: {addr}")
+
 
 # Treadle subprocess wrapper, similar to code used in a previous project in order to run
 # a SMT solver as a subprocess
@@ -87,10 +140,9 @@ class TreadleWrapper:
 
 	def execute(self, cmd: str, count=0):
 		self.send_cmd(cmd=cmd)
-		if count == 1:
-			return self.read_blocking(count=1)[0]
-		elif count > 1:
+		if count > 0:
 			return self.read_blocking(count=count)
+		return []
 
 	def send_cmd(self, cmd: str):
 		assert self.is_running
@@ -150,3 +202,6 @@ class SubprocessOutputThread(threading.Thread):
 				self.fifo.get(block=False)
 		except queue.Empty:
 			return
+
+if __name__ == '__main__':
+	TreadleServer.run()
