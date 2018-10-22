@@ -7,25 +7,18 @@
 from aga import *
 
 
+class Testbench(Module):
+	def __init__(self):
+		super().__init__()
+		with self.rule("rl_print_answer") as r:
+			r.display("Deep Thought says: Hello, World! The answer is 42.")
+			r.finish()
 
 
 def main():
-	print("Hello World")
+	circuit = elaborate(Testbench())
+	simulate(circuit, max_cycles=10)
 
-	# elaborate
-
-	# simulate for N cycles
-
-
-
-"""
-module mkTestbench (Empty);
-rule rl_print_answer;
-$display ("Deep Thought says: Hello, World! The answer is 42.");
-$finish;
-endrule
-endmodule
-"""
 
 if __name__ == '__main__':
 	main()
