@@ -143,6 +143,10 @@ class Register(Statement):
 	clock = Expr
 	reset = Optional[Reset]
 
+class Stop(Statement):
+	clock = Expr
+	condition = Expr
+	exit_code = int
 
 ## Modules ##
 
