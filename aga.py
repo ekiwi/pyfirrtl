@@ -34,13 +34,17 @@ class PrintF(Statement):
 
 
 class Module:
-	def __init__(self):
-		self._state = []
-		self._rules = []
+	def __init__(self, name=None):
+		if name is None:
+			self.name = self.__class__.__name__
+		else:
+			self.name = name
+		self.state = []
+		self.rules = []
 
 	def rule(self, name: str):
 		rr = RuleBuilder(name=name)
-		self._rules.append(rr)
+		self.rules.append(rr)
 		return rr
 
 
@@ -65,8 +69,98 @@ class RuleBuilder:
 		assert self._under_construction
 		self._statements.append(Stop())
 
+
+## Elaborate ##
+import firrtl
+
+class Elaboration:
+	def __init__(self):
+		# all the following fields are initialized by the run method
+		self.ids = None
+
+	@property
+	def _clock(self):
+		return firrtl.Ref("clk")
+	@property
+	def _reset(self):
+		return firrtl.Ref("reset")
+
+	def _unique_id(self, prefix):
+		if prefix not in self.ids:
+			name = prefix
+		else:
+			counter = 0
+			while f"{prefix}_{counter}" in self.ids:
+				counter += 1
+			name = f"{prefix}_{counter}"
+		self.ids.add(name)
+		return name
+
+	def run(self, mod: Module):
+		assert isinstance(mod, Module)
+		# reset global fields
+		self.ids = {"clk", "reset"}
+
+		# TODO: check module interface and create ports
+		ports = [
+			firrtl.Port(name="clk", typ=Clock(), dir=firrtl.PortDir.Input),
+			firrtl.Port(name="reset", typ=UInt(1), dir=firrtl.PortDir.Input)
+		]
+
+		statements = []
+
+		# generate registers
+		for reg in mod.state:
+			statements += self.visit(reg)
+
+		# generate (combinational) rule circuits
+		for rule in mod.rules:
+			statements += self.visit(rule)
+
+		# TODO: generate scheduler
+
+		return firrtl.Circuit(name=mod.name, modules=[
+			firrtl.Module(name=mod.name, ports=ports, statements=statements)
+		])
+
+
+
+
+	def visit(self, node):
+		"""Visit a node."""
+		method = 'visit_' + node.__class__.__name__
+		visitor = getattr(self, method, self.generic_visit)
+		return visitor(node)
+
+	def generic_visit(self, node):
+		raise NotImplementedError(f"TODO: visit({node.__class__.__name__})")
+
+	def visit_NoneType(self, _none):
+		return ""
+
+
+	def visit_RuleBuilder(self, node):
+		# TODO
+		return []
+
+
 def elaborate(module: Module):
-	print(f"TODO: implement elaborate({module})")
+	return Elaboration().run(module)
 
 def simulate(circuit, max_cycles: int):
-	print(f"TODO: implement simulate({circuit}, {max_cycles})")
+	ir = firrtl.ToString().visit(circuit)
+	print(ir)
+
+	from simulator import Simulator
+	use_server = True
+	if use_server:
+		sim = Simulator.start_remote()
+		print("using treadle server...")
+	else:
+		sim = Simulator.start_local()
+
+	sim.load(ir)
+	sim.poke("reset", 1)
+	sim.step(1)
+	sim.poke("reset", 0)
+	sim.step(max_cycles)
