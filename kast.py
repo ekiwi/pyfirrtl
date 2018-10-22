@@ -26,6 +26,10 @@ def _isinstance(obj, typ) -> bool:
 	else:
 		raise NotImplementedError(f"_isinstance({obj}, {typ})")
 
+def _is_optional(typ) -> bool:
+	return(str(typ).startswith('typing.Union') and
+		   any(aa is type(None) for aa in typ.__args__))
+
 def get_fields_of_class(cls):
 	""" returns the fields of a single class """
 	# this relies on https://www.python.org/dev/peps/pep-0520
@@ -69,7 +73,8 @@ class Node(ast.AST):
 		aa = parse_args(field_names, args, kwargs)
 		# check completeness
 		for name, value in fields:
-			if not name in aa and not str(value).startswith('typing.Optional'):
+			is_optional = _is_optional(value)
+			if not name in aa and not _is_optional(value):
 				raise TypeError("Missing value for field `{}`".format(name))
 		# check types
 		types = {ff[0]: ff[1] for ff in fields}
