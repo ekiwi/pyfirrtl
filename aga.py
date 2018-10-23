@@ -204,6 +204,9 @@ class Elaboration:
 def elaborate(module: Module):
 	return Elaboration().run(module)
 
+def get_firrtl(circuit):
+	return firrtl.ToString.visit(circuit)
+
 def simulate(circuit, max_cycles: int):
 	ir = firrtl.ToString().visit(circuit)
 	print(ir)
