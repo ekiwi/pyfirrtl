@@ -43,15 +43,17 @@ class Module:
 		self.rules = []
 
 	def rule(self, name: str):
-		rr = RuleBuilder(name=name)
+		assert not any(rr.name == name for rr in self.rules), "Rule names need to be unique"
+		rr = Rule(name=name)
 		self.rules.append(rr)
 		return rr
 
 
-class RuleBuilder:
+class Rule:
 	def __init__(self, name: str):
 		self.name = name
-		self._statements = []
+		self.statements = []
+		self.guard = firrtl.Literal(value=1, typ=UInt(1))
 		self._under_construction = False
 
 	def __enter__(self):
@@ -63,20 +65,26 @@ class RuleBuilder:
 
 	def display(self, format_str : str, *vargs):
 		assert self._under_construction
-		self._statements.append(PrintF(format_str=format_str, vargs=list(vargs)))
+		self.statements.append(PrintF(format_str=format_str, vargs=list(vargs)))
 
 	def finish(self):
 		assert self._under_construction
-		self._statements.append(Stop())
+		self.statements.append(Stop())
 
 
 ## Elaborate ##
 import firrtl
 
+def default(maybe, dd):
+	if maybe is None: return dd
+	else: return maybe
+
 class Elaboration:
 	def __init__(self):
 		# all the following fields are initialized by the run method
 		self.ids = None
+		self.can_fire = None
+		self.firing = None
 
 	@property
 	def _clock(self):
@@ -84,6 +92,19 @@ class Elaboration:
 	@property
 	def _reset(self):
 		return firrtl.Ref("reset")
+
+	@staticmethod
+	def _can_fire(rule):
+		assert isinstance(rule, Rule)
+		return f"{rule.name}_can_fire"
+
+	@staticmethod
+	def _firing(rule):
+		assert isinstance(rule, Rule)
+		return f"{rule.name}_firing"
+
+	def _ids(self, *vargs):
+		return [self._unique_id(ii) for ii in vargs]
 
 	def _unique_id(self, prefix):
 		if prefix not in self.ids:
@@ -96,10 +117,23 @@ class Elaboration:
 		self.ids.add(name)
 		return name
 
+	def _wire(self, ref, typ):
+		return firrtl.WireDeclaration(name=ref.name, typ=typ)
+
+	def _connect(self, lhs, rhs):
+		return firrtl.Connect(lhs=lhs, rhs=rhs)
+
 	def run(self, mod: Module):
 		assert isinstance(mod, Module)
 		# reset global fields
 		self.ids = {"clk", "reset"}
+		self.can_fire = None
+		self.firing = None
+
+		# prevent rule names to be used for anything else
+		for rule in mod.rules:
+			self.ids.add(self._firing(rule))
+			self.ids.add(self._can_fire(rule))
 
 		# TODO: check module interface and create ports
 		ports = [
@@ -117,13 +151,18 @@ class Elaboration:
 		for rule in mod.rules:
 			statements += self.visit(rule)
 
-		# TODO: generate scheduler
+		# generate scheduler
+		assert len(mod.rules) <= 1, "cannot schedule multiple rules yet"
+		for rule in mod.rules:
+			statements.append(
+				self._connect(firrtl.Ref(self._firing(rule)),
+							  firrtl.Ref(self._can_fire(rule)))
+			)
+
 
 		return firrtl.Circuit(name=mod.name, modules=[
 			firrtl.Module(name=mod.name, ports=ports, statements=statements)
 		])
-
-
 
 
 	def visit(self, node):
@@ -139,9 +178,27 @@ class Elaboration:
 		return ""
 
 
-	def visit_RuleBuilder(self, node):
-		# TODO
-		return []
+	def visit_Rule(self, node):
+		assert isinstance(node.name, str)
+		name = node.name
+		self.can_fire = firrtl.Ref(self._can_fire(node))
+		self.firing   = firrtl.Ref(self._firing(node))
+		stmts  = [self._wire(self.can_fire, UInt(1)),
+				  self._wire(self.firing, UInt(1)),
+				  self._connect(self.can_fire, node.guard)]
+		stmts += [self.visit(st) for st in node.statements]
+
+		self.can_fire = self.firing = None
+		return stmts
+
+	def visit_Stop(self, node):
+		exit_code = default(node.exit_code, 0)
+		return firrtl.Stop(clock=self._clock, condition=self.firing,
+						   exit_code=exit_code)
+
+	def visit_PrintF(self, node):
+		return firrtl.PrintF(clock=self._clock, condition=self.firing,
+							 format_str=node.format_str, vargs=node.vargs)
 
 
 def elaborate(module: Module):

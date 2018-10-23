@@ -123,6 +123,10 @@ class Tail(PrimOp):
 	e = Expr
 	n = int
 
+class Literal(Expr):
+	value = int
+	typ = Type
+
 ## Statement ##
 
 class Statement(Node):
@@ -147,6 +151,16 @@ class Stop(Statement):
 	clock = Expr
 	condition = Expr
 	exit_code = int
+
+class PrintF(Statement):
+	clock = Expr
+	condition = Expr
+	format_str = str
+	vargs = List[Expr]
+
+class WireDeclaration(Statement):
+	name = str
+	typ = Type
 
 ## Modules ##
 
@@ -212,13 +226,21 @@ class ToString:
 
 	def visit_Connect(self, node):
 		return f"{self.visit(node.lhs)} <= {self.visit(node.rhs)}"
-
 	def visit_Reset(self, node):
 		enable, value = self.visit(node.enable), self.visit(node.value)
 		return f" with: (reset => ({enable}, {value}))"
 	def visit_Register(self, node):
 		typ, clock, reset = self.visit(node.typ), self.visit(node.clock), self.visit(node.reset)
 		return f"reg {node.name} : {typ}, {clock}{reset}"
+	def visit_WireDeclaration(self, node):
+		return f"wire {node.name}: {self.visit(node.typ)}"
+	def visit_PrintF(self, node):
+		clk, cond = self.visit(node.clock), self.visit(node.condition)
+		vargs = ", " + ", ".join(node.vargs) if len(node.vargs) > 0 else ""
+		return f"printf({clk}, {cond}, \"{node.format_str}\"{vargs})"
+	def visit_Stop(self, node):
+		clk, cond = self.visit(node.clock), self.visit(node.condition)
+		return f"stop({clk}, {cond}, {node.exit_code})"
 
 
 	# Expressions
@@ -261,3 +283,5 @@ class ToString:
 	def visit_Tail(self, node):
 		assert node.n >= 0
 		return f"tail({self.visit(node.e)}, {node.n})"
+	def visit_Literal(self, node):
+		return f"{self.visit(node.typ)}({node.value})"
