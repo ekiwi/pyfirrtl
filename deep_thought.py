@@ -9,27 +9,26 @@ from aga import *
 
 ###############################################################################
 
-"""
-class Testbench(Module):
+class A_Testbench(Module):
 	def __init__(self):
 		super().__init__()
 		with self.rule("rl_print_answer") as r:
 			r.display("Deep Thought says: Hello, World! The answer is 42.")
 			r.finish()
-"""
 
 ###############################################################################
 
-class DeepThought(Module):
+
+class B_DeepThought(Module):
 	def __init__(self, T):
 		super().__init__()
 		with self.value(T, "getAnswer") as r:
 			r.ret(T(42))
 
-class Testbench(Module):
+class B_Testbench(Module):
 	def __init__(self, T):
 		super().__init__()
-		self.deepThought = DeepThought(T)
+		self.deepThought = B_DeepThought(T)
 		with self.rule("rl_print_answer") as r:
 			x = self.deepThought.getAnswer()
 			r.display("Deep Thought says: Hello, World! The answer is %d.", x)
@@ -40,7 +39,7 @@ class Testbench(Module):
 
 def main():
 	T = UInt(32)
-	circuit = elaborate(Testbench(T))
+	circuit = elaborate(A_Testbench())
 	simulate(circuit, max_cycles=10)
 
 
