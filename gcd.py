@@ -10,16 +10,16 @@ from aga import *
 class Gcd(Module):
 	def __init__(self, T: Type):
 		super().__init__()
-		self.x = x = RegU(T),
+		self.x = x = RegU(T)
 		self.y = y = Reg(T, 0)
-		is_active = y != 0
+		is_active = y != T(0)
 
 		with self.rule("swap").guard(x > y & is_active) as r:
 			r.update(x=y, y=x)
 		with self.rule("subtract").guard(x <= y & is_active) as r:
 			r.update(y=y-x)
 		with self.action("start", a=T, b=T).guard(~is_active) as m:
-			m.update(x=a, y=b)
+			m.update(x=m.a, y=m.b)
 		with self.value(T, "result").guard(~is_active) as m:
 			m.ret(x)
 
