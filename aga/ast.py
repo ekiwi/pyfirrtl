@@ -65,6 +65,7 @@ class Module:
 			self.name = name
 		self.state = []
 		self.rules = []
+		self.methods = []
 
 	def _assert_unique_name(self, name: str):
 		assert not any(rr.name == name for rr in self.rules), "Rule names need to be unique"
@@ -79,14 +80,14 @@ class Module:
 		self._assert_unique_name(name)
 		# TODO: expose as class argument!
 		rr = ActionMethod(mod=self, name=name, args=[(k,v) for k,v in kwargs.items()])
-		self.rules.append(rr)
+		self.methods.append(rr)
 		return rr
 
 	def value(self, T: Type, name: str):
 		self._assert_unique_name(name)
 		# TODO: expose as class argument!
 		rr = ValueMethod(mod=self, name=name, T=T)
-		self.rules.append(rr)
+		self.methods.append(rr)
 		return rr
 
 class RuleBase:

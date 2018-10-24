@@ -67,11 +67,12 @@ class Elaboration:
 			self.ids.add(self._firing(rule))
 			self.ids.add(self._can_fire(rule))
 
-		# TODO: check module interface and create ports
 		ports = [
 			firrtl.Port(name="clk", typ=Clock(), dir=firrtl.PortDir.Input),
 			firrtl.Port(name="reset", typ=UInt(1), dir=firrtl.PortDir.Input)
 		]
+
+
 
 		statements = []
 
@@ -84,7 +85,8 @@ class Elaboration:
 			statements += self.visit(rule)
 
 		# generate scheduler
-		assert len(mod.rules) <= 1, "cannot schedule multiple rules yet"
+		#assert len(mod.rules) <= 1, "cannot schedule multiple rules yet"
+		print("WARNING: priority encoder needed!")
 		for rule in mod.rules:
 			statements.append(
 				self._connect(firrtl.Ref(self._firing(rule)),
@@ -117,7 +119,7 @@ class Elaboration:
 		self.firing   = firrtl.Ref(self._firing(node))
 		stmts  = [self._wire(self.can_fire, UInt(1)),
 				  self._wire(self.firing, UInt(1)),
-				  self._connect(self.can_fire, node.guard)]
+				  self._connect(self.can_fire, node.guard_expr)]
 		stmts += [self.visit(st) for st in node.statements]
 
 		self.can_fire = self.firing = None
