@@ -4,7 +4,7 @@
 # Copyright 2018, University of California, Berkeley
 # author: Kevin Laeufer <laeufer@cs.berkeley.edu>
 
-from aga import *
+from gaa import *
 
 
 class Gcd(Module):
