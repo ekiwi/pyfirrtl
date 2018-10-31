@@ -67,6 +67,11 @@ class Elaboration:
 			self.ids.add(self._firing(rule))
 			self.ids.add(self._can_fire(rule))
 
+
+		# TODO: find state in module, analyze rules and methods as to what state the modify and what they update
+
+		# TODO: generate ports for methods
+
 		ports = [
 			firrtl.Port(name="clk", typ=Clock(), dir=firrtl.PortDir.Input),
 			firrtl.Port(name="reset", typ=UInt(1), dir=firrtl.PortDir.Input)
@@ -76,9 +81,14 @@ class Elaboration:
 
 		statements = []
 
-		# generate registers
-		for reg in mod.state:
-			statements += self.visit(reg)
+		# try to find registers
+		public_attr = ((ii, getattr(mod, ii)) for ii in dir(mod) if not ii.startswith("__"))
+		reg_names = {}
+		for reg_name, reg in (ii for ii in public_attr if isinstance(ii[1], Register)):
+			name = self._unique_id(f"{mod.__class__.__name__}_{reg_name}")
+			reg_names[Reg] = firrtl.Ref(name)
+			reset = None if reg.reset is None else firrtl.Reset(enable=self._reset,value=reg.typ(reg.reset))
+			statements += [firrtl.Register(name=name, typ=reg.typ, clock=self._clock, reset=reset)]
 
 		# generate (combinational) rule circuits
 		for rule in mod.rules:
@@ -134,4 +144,6 @@ class Elaboration:
 		return firrtl.PrintF(clock=self._clock, condition=self.firing,
 							 format_str=node.format_str, vargs=node.vargs)
 
-
+	def visit_Register(self, node, name):
+		print(f"TODO: {node} : {name}")
+		return []

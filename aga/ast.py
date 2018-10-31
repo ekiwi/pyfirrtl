@@ -63,7 +63,7 @@ class Module:
 			self.name = self.__class__.__name__
 		else:
 			self.name = name
-		self.state = []
+		#self.state = []
 		self.rules = []
 		self.methods = []
 
