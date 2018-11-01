@@ -26,8 +26,12 @@ class Gcd(Module):
 def main():
 	T = UInt(32)
 	circuit = elaborate(Gcd(T))
-	print(get_firrtl(circuit))
+	ir = get_firrtl(circuit)
+	print(ir)
 
+	from simulator import Simulator
+	sim = Simulator.start_remote()
+	sim.load(ir)
 
 """
 interface I_GCD;
