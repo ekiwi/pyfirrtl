@@ -8,6 +8,7 @@
 
 # support for typed IR nodes
 
+from typing import Union, Optional, List, Tuple, Iterable
 
 def _isinstance(obj, typ) -> bool:
 	typ_name = str(typ)
@@ -33,7 +34,7 @@ def get_fields_of_class(cls):
 	""" returns the fields of a single class """
 	# this relies on https://www.python.org/dev/peps/pep-0520
 	# and Python 3.6 (see Note in PEP520)
-	return [(n,v) for n,v in cls.__dict__.items() if not n[0] == '_']
+	return {n:v for n,v in cls.__dict__.items() if not n[0] == '_'}
 
 def get_fields(cls):
 	""" returns fields of the class and all ancestor classes """
@@ -44,7 +45,10 @@ def get_fields(cls):
 		assert sum(fields_available) < 2, "multiple inheritance is not supported ... too lazy"
 		ii = fields_available.index(True) if sum(fields_available) > 0 else 0
 		cls = cls.__bases__[ii]
-		fields += new_fields[ii]
+		# only include base class fields if they have not been overwritten
+		for name, value in new_fields[ii].items():
+			if name not in fields:
+				fields[name] = value
 	return fields
 
 def parse_args(names, args, kwargs):
@@ -68,26 +72,22 @@ class Node:
 	""" type checking replacement for ast.AST"""
 	def __init__(self, *args, **kwargs):
 		fields = get_fields(type(self))
-		field_names = [ff[0] for ff in fields]
+		field_names = fields.keys()
 		aa = parse_args(field_names, args, kwargs)
 		# check completeness
-		for name, value in fields:
-			is_optional = _is_optional(value)
+		for name, value in fields.items():
 			if not name in aa and not _is_optional(value):
 				raise TypeError("Missing value for field `{}`".format(name))
 		# check types
-		types = {ff[0]: ff[1] for ff in fields}
 		for name, value in aa.items():
-			if not _isinstance(value, types[name]):
+			if not _isinstance(value, fields[name]):
 				raise TypeError("Field `{}` requires values of type `{}` not `{}`".format(
-					name, types[name], type(value)))
+					name, fields[name], type(value)))
 		# accept field values
 		for name in field_names:
 			object.__setattr__(self, name, aa.get(name, None))
 		# fake _fields
 		object.__setattr__(self, "_fields", field_names)
-		# remember field types
-		object.__setattr__(self, "_typed_fields", fields)
 	def __setattr__(self, name, value):
 		raise AttributeError("kAST nodes are immutable!")
 	def _map(self, fun, filt):
