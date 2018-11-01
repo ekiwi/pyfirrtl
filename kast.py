@@ -90,18 +90,26 @@ class Node:
 		object.__setattr__(self, "_fields", field_names)
 	def __setattr__(self, name, value):
 		raise AttributeError("kAST nodes are immutable!")
-	def _map(self, fun, filt):
+	def map(self, fun):
 		new_values = {}
-		for name, tt in self._typed_fields:
-			old = self.__getattribute__(name)
-			if filt(name, tt) and old is not None:
-				if isinstance(old, list):
-					new_values[name] = [fun(o) for o in old]
-				else:
-					new_values[name] = fun(old)
+		for name, old in iter_fields(self):
+			if old is None: continue
+			if isinstance(old, list):
+				new = list(filter_none(fun(o) for o in old))
+			elif isinstance(old, tuple):
+				new = tuple(filter_none(fun(o) for o in old))
 			else:
-				new_values[name] = self.__getattribute__(name)
+				new = fun(old)
+			if new is None: continue
+			new_values[name] = new
 		return self.__class__(**new_values)
+	def apply(self, fun):
+		for _, val in iter_fields(self):
+			if val is None: continue
+			if isinstance(val, list) or isinstance(val, tuple):
+				for vv in val: fun(vv)
+			else:
+				fun(val)
 	def set(self, **kwargs):
 		if len(kwargs) < 1: return self
 		field_names = set(self._fields)
@@ -117,17 +125,33 @@ class Node:
 		return self.__class__.__name__ + "(" + ", ".join(fields) + ")"
 	def __repr__(self): return str(self)
 
+# code bellow copied + modified from Python3 ast library
+def iter_fields(node: Node):
+	for field in node._fields:
+		try:
+			yield field, getattr(node, field)
+		except AttributeError:
+			pass
+
 class NodeVisitor:
 	def visit(self, node):
 		method = 'visit_' + node.__class__.__name__
-		visitor = getattr(self, method, self.generic_visit)
-		return visitor(node)
+		getattr(self, method, self.generic_visit)(node)
 
 	def generic_visit(self, node):
-		for name, typ in node._typed_fields:
-			if isinstance(value, list):
-				for item in value:
-					if isinstance(item, AST):
-						self.visit(item)
-			elif isinstance(value, AST):
-				self.visit(value)
+		if isinstance(node, Node):
+			node.apply(self.visit)
+
+def filter_none(iter: Iterable) -> Iterable:
+	return (ii for ii in iter if ii is not None)
+
+class NodeTransformer:
+	def visit(self, node):
+		method = 'visit_' + node.__class__.__name__
+		return getattr(self, method, self.generic_visit)(node)
+
+	def generic_visit(self, node):
+		if isinstance(node, Node):
+			return node.map(self.visit)
+		else:
+			return node
