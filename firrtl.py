@@ -248,10 +248,10 @@ class ToString:
 		return node.name
 	def visit_BinOp(self, node):
 		e1, e2 = self.visit(node.e1), self.visit(node.e2)
-		return f"{str(node.op).lower()}({e1}, {e2})"
+		return f"{node.op.name.lower()}({e1}, {e2})"
 	def visit_Cmp(self, node):
 		e1, e2 = self.visit(node.e1), self.visit(node.e2)
-		op = {'NE': 'neq', 'LE': 'leq', 'GE': 'geq'}.get(node.op, camelCase(node.op.name))
+		op = {'NE': 'neq', 'LE': 'leq', 'GE': 'geq'}.get(node.op.name, node.op.name.lower())
 		return f"{op}({e1}, {e2})"
 	def visit_UnOp(self, node):
 		op = {'ArithmeticToSigned': 'cvt'}.get(node.op, camelCase(node.op.name))
