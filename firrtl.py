@@ -273,10 +273,13 @@ class ToString:
 			return f"shr({e}, {node.n})"
 		else:
 			return f"dshr({e}, {self.visit(node.n)})"
-	def visitExtract(self, node):
+	def visit_Extract(self, node):
 		assert node.lo >= 0
 		assert node.hi >= node.lo
 		return f"bits({self.visit(node.e)}, {node.hi}, {node.lo})"
+	def visit_Mux(self, node):
+		sel, a, b = self.visit(node.sel), self.visit(node.a), self.visit(node.b)
+		return f"mux({sel}, {a}, {b})"
 	def visit_Head(self, node):
 		assert node.n >= 0
 		return f"head({self.visit(node.e)}, {node.n})"
