@@ -44,11 +44,11 @@ class PrintF(Statement):
 	format_str = str
 	vargs = List[Expr]
 
-class Wire(Expr):
+class Wire(firrtl.Ref):
 	typ = Type
 	name = Optional[str] # optional name **hint**
 
-class Register(Expr):
+class Register(firrtl.Ref):
 	typ = Type
 	reset = Optional[int]
 	name = Optional[str]  # optional name **hint**

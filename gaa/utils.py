@@ -5,11 +5,17 @@
 # author: Kevin Laeufer <laeufer@cs.berkeley.edu>
 
 from .ast import *
-from .elaboration import Elaboration
+from .elaboration import Elaboration, DeclareRegistersAndWires
 import firrtl
 
+_Elaboration = Elaboration()
+_DeclareRegistersAndWires = DeclareRegistersAndWires()
+
 def elaborate(module: Module):
-	return Elaboration().run(module)
+	circuit = _Elaboration.run(module)
+	assert len(circuit.modules) == 1
+	mm = _DeclareRegistersAndWires.run(circuit.modules[0], "reset", "clk")
+	return circuit.set(modules=[mm])
 
 def get_firrtl(circuit):
 	return firrtl.ToString().visit(circuit)
