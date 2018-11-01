@@ -11,6 +11,20 @@ def default(maybe, dd):
 	if maybe is None: return dd
 	else: return maybe
 
+def priority_mux(signals):
+	front = signals[0]
+	if len(signals) == 1:
+		return front[1]
+	else:
+		return firrtl.Mux(front[0], front[1], priority_mux(signals[1:]))
+
+def priority_encoder(inputs):
+	T = UInt(len(inputs))
+	vectors = [T(1<<ii) for ii in reversed(range(len(inputs)))]
+	signals = list(zip(inputs, vectors)) + [(UInt(1)(0), T(0))]
+	out = priority_mux(signals)
+	return [firrtl.Extract(out, ii, ii) for ii in reversed(range(len(inputs)))]
+
 class Elaboration(kast.NodeTransformer):
 	def __init__(self):
 		self._can_fire = {}
@@ -60,10 +74,9 @@ class Elaboration(kast.NodeTransformer):
 			statements += self.visit(rule)
 
 		# generate scheduler
-		#assert len(mod.rules) <= 1, "cannot schedule multiple rules yet"
-		print("WARNING: priority encoder needed!")
-		for rule in mod.rules:
-			statements.append(self._connect(self._firing[rule], self._can_fire[rule]))
+		scheduler = priority_encoder([self._can_fire[rule] for rule in mod.rules])
+		for ii, rule in enumerate(mod.rules):
+			statements.append(self._connect(self._firing[rule], scheduler[ii]))
 
 
 		return firrtl.Circuit(name=mod.name, modules=[
