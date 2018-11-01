@@ -51,6 +51,7 @@ class Wire(Expr):
 class Register(Expr):
 	typ = Type
 	reset = Optional[int]
+	name = Optional[str]  # optional name **hint**
 
 def Reg(T: Type, value: int):
 	return Register(typ=T, reset=value)

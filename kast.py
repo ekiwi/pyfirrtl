@@ -8,7 +8,6 @@
 
 # support for typed IR nodes
 
-import ast
 
 def _isinstance(obj, typ) -> bool:
 	typ_name = str(typ)
@@ -65,7 +64,7 @@ def matches_types(types, tt):
 	if isinstance(tt, Optional): return matches_types(types, tt.field_type)
 	return False
 
-class Node(ast.AST):
+class Node:
 	""" type checking replacement for ast.AST"""
 	def __init__(self, *args, **kwargs):
 		fields = get_fields(type(self))
@@ -103,14 +102,6 @@ class Node(ast.AST):
 			else:
 				new_values[name] = self.__getattribute__(name)
 		return self.__class__(**new_values)
-	def map(self, fun, types):
-		if is_type_list(types):
-			filt = lambda name, tt: matches_types(types=types, tt=tt)
-		elif is_str_list(types):
-			file = lambda name, tt: name in types
-		else:
-			assert False, "types needs to be a list of types are of field names!"
-		return self._map(fun, filt)
 	def set(self, **kwargs):
 		if len(kwargs) < 1: return self
 		field_names = set(self._fields)
@@ -125,3 +116,18 @@ class Node(ast.AST):
 			fields.append(str(getattr(self, name)))
 		return self.__class__.__name__ + "(" + ", ".join(fields) + ")"
 	def __repr__(self): return str(self)
+
+class NodeVisitor:
+	def visit(self, node):
+		method = 'visit_' + node.__class__.__name__
+		visitor = getattr(self, method, self.generic_visit)
+		return visitor(node)
+
+	def generic_visit(self, node):
+		for name, typ in node._typed_fields:
+			if isinstance(value, list):
+				for item in value:
+					if isinstance(item, AST):
+						self.visit(item)
+			elif isinstance(value, AST):
+				self.visit(value)

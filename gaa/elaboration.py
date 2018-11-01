@@ -7,11 +7,24 @@
 import firrtl
 from .ast import *
 
+class NodeVisitor:
+	def visit(self, node):
+		"""Visit a node."""
+		method = 'visit_' + node.__class__.__name__
+		visitor = getattr(self, method, self.generic_visit)
+		return visitor(node)
+
+	def generic_visit(self, node):
+		raise NotImplementedError(f"TODO: visit({node.__class__.__name__})")
+
+	def visit_NoneType(self, _none):
+		return ""
+
 def default(maybe, dd):
 	if maybe is None: return dd
 	else: return maybe
 
-class Elaboration:
+class Elaboration(NodeVisitor):
 	def __init__(self):
 		# all the following fields are initialized by the run method
 		self.ids = None
@@ -108,20 +121,6 @@ class Elaboration:
 			firrtl.Module(name=mod.name, ports=ports, statements=statements)
 		])
 
-
-	def visit(self, node):
-		"""Visit a node."""
-		method = 'visit_' + node.__class__.__name__
-		visitor = getattr(self, method, self.generic_visit)
-		return visitor(node)
-
-	def generic_visit(self, node):
-		raise NotImplementedError(f"TODO: visit({node.__class__.__name__})")
-
-	def visit_NoneType(self, _none):
-		return ""
-
-
 	def visit_Rule(self, node):
 		assert isinstance(node.name, str)
 		name = node.name
@@ -147,3 +146,4 @@ class Elaboration:
 	def visit_Register(self, node, name):
 		print(f"TODO: {node} : {name}")
 		return []
+
