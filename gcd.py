@@ -14,9 +14,9 @@ class Gcd(Module):
 		self.y = y = Reg(T, 0)
 		is_active = y != T(0)
 
-		with self.rule("swap").guard(x > y & is_active) as r:
+		with self.rule("swap").guard((x > y) & is_active) as r:
 			r.update(x=y, y=x)
-		with self.rule("subtract").guard(x <= y & is_active) as r:
+		with self.rule("subtract").guard((x <= y) & is_active) as r:
 			r.update(y=y-x)
 		with self.action("start", a=T, b=T).guard(~is_active) as m:
 			m.update(x=m.a, y=m.b)
