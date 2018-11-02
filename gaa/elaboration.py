@@ -25,6 +25,20 @@ def priority_encoder(inputs):
 	out = priority_mux(signals)
 	return [firrtl.Extract(out, ii, ii) for ii in reversed(range(len(inputs)))]
 
+from functools import reduce
+def _and(a,b):
+	return firrtl.BinOp(op=firrtl.Bop.And, e1=a, e2=b)
+def _or(a,b):
+	return firrtl.BinOp(op=firrtl.Bop.Or, e1=a, e2=b)
+def _not(a):
+	return firrtl.UnOp(op=firrtl.Uop.Not, e=a)
+# should behave the same as `priority_encoder`, TODO: formally verify (at least for a couple of instances)
+def priority_encoder_2(inputs):
+	assert len(inputs) >= 1
+	return [inputs[0]] + [_and(inputs[ii+1], _not(reduce(_and, inputs[:ii+1])))
+		for ii in range(len(inputs) - 1)
+	]
+
 class Elaboration(kast.NodeTransformer):
 	def __init__(self):
 		self._can_fire = {}
@@ -74,7 +88,7 @@ class Elaboration(kast.NodeTransformer):
 			statements += self.visit(rule)
 
 		# generate scheduler
-		scheduler = priority_encoder([self._can_fire[rule] for rule in mod.rules])
+		scheduler = priority_encoder_2([self._can_fire[rule] for rule in mod.rules])
 		for ii, rule in enumerate(mod.rules):
 			statements.append(self._connect(self._firing[rule], scheduler[ii]))
 
