@@ -61,6 +61,26 @@ class Elaboration(kast.NodeTransformer):
 	def _connect(self, lhs, rhs):
 		return firrtl.Connect(lhs=lhs, rhs=rhs)
 
+	@staticmethod
+	def is_method(rule: RuleBase):
+		return isinstance(rule, ActionMethod) or isinstance(rule, ValueMethod)
+
+	def create_ports(self, rule: RuleBase):
+		if not self.is_method(rule): return []
+		ports = {"rdy": (UInt(1), firrtl.PortDir.Output)}
+		if isinstance(rule, ActionMethod):
+			ports["en"] = (UInt(1), firrtl.PortDir.Input)
+			for arg in rule.args:
+				ports[arg.name] = (arg.typ, firrtl.PortDir.Input)
+		elif isinstance(rule, ValueMethod):
+			ports[""] = (rule.return_type, firrtl.PortDir.Output)
+		else:
+			raise RuntimeError("Should never get here")
+		def mk_name(name: str):
+			if len(name) == 0: return rule.name
+			return f"{rule.name}_{name}"
+		return [firrtl.Port(name=mk_name(name), typ=d[0], dir=d[1]) for name, d in ports.items()]
+
 	def run(self, mod: Module):
 		assert isinstance(mod, Module)
 		# reset global fields
@@ -71,6 +91,8 @@ class Elaboration(kast.NodeTransformer):
 			self._can_fire[rule] = Wire(typ=UInt(1), name=f"{mod.name}_{rule.name}_can_fire")
 			self._firing[rule] = Wire(typ=UInt(1), name=f"{mod.name}_{rule.name}_firing")
 
+		internal_rules = [rule for rule in mod.rules if not self.is_method(rule)]
+		methods = [rule for rule in mod.rules if self.is_method(rule)]
 
 		# TODO: find state in module, analyze rules and methods as to what state the modify and what they update
 
@@ -81,6 +103,9 @@ class Elaboration(kast.NodeTransformer):
 			firrtl.Port(name="reset", typ=UInt(1), dir=firrtl.PortDir.Input)
 		]
 
+		for rule in mod.rules:
+			ports += self.create_ports(rule)
+
 		statements = []
 
 		# generate (combinational) rule circuits
@@ -88,8 +113,8 @@ class Elaboration(kast.NodeTransformer):
 			statements += self.visit(rule)
 
 		# generate scheduler
-		scheduler = priority_encoder_2([self._can_fire[rule] for rule in mod.rules])
-		for ii, rule in enumerate(mod.rules):
+		scheduler = priority_encoder_2([self._can_fire[rule] for rule in internal_rules])
+		for ii, rule in enumerate(internal_rules):
 			statements.append(self._connect(self._firing[rule], scheduler[ii]))
 
 
@@ -104,6 +129,12 @@ class Elaboration(kast.NodeTransformer):
 		stmts += [self.visit(st) for st in node.statements]
 		self.can_fire = self.firing = None
 		return stmts
+
+	def visit_ActionMethod(self, node):
+		return self.visit_Rule(node)
+
+	def visit_ValueMethod(self, node):
+		return []
 
 	def visit_Stop(self, node):
 		exit_code = default(node.exit_code, 0)
